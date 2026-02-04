@@ -49,6 +49,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'pnpm'
+          cache-dependency-path: noiddea-dash/pnpm-lock.yaml  
 
       # =========================
       # Rust
