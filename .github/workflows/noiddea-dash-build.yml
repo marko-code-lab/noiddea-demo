@@ -1,9 +1,11 @@
-name: Build Installers
+name: Build Installers - Noiddea Dash
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'dash-v*'
+    paths:
+      - 'noiddea-dash/**'
   workflow_dispatch:
 
 jobs:
@@ -18,7 +20,23 @@ jobs:
           - platform: 'windows-latest'
             args: ''
             target: ''
-            name: 'Windows'
+            name: 'Windows-Dash'
+
+          # =========================
+          # macOS
+          # =========================
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+            target: 'aarch64-apple-darwin'
+            name: 'macOS-Dash'
+
+          # =========================
+          # Linux
+          # =========================
+          - platform: 'ubuntu-latest'
+            args: ''
+            target: ''
+            name: 'Linux-Dash'
 
     runs-on: ${{ matrix.platform }}
 
@@ -56,6 +74,8 @@ jobs:
       # =========================
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       # =========================
       # Windows deps (MSI)
@@ -86,21 +106,21 @@ jobs:
       # Frontend deps
       # =========================
       - name: Install frontend dependencies
+        working-directory: noiddea-dash
         run: pnpm install --frozen-lockfile
 
       # =========================
       # Build frontend
       # =========================
       - name: Build frontend
+        working-directory: noiddea-dash
         run: pnpm build
 
-      # =========================
-      # Verify frontend output
-      # =========================
       # =========================
       # Verify frontend build output
       # =========================
       - name: Verify frontend build output
+        working-directory: noiddea-dash
         shell: bash
         run: |
           echo "Checking dist/build folder"
@@ -111,6 +131,7 @@ jobs:
       # =========================
       - name: Build Tauri app (macOS)
         if: matrix.platform == 'macos-latest'
+        working-directory: noiddea-dash
         env:
           CI: false
         run: pnpm exec tauri build ${{ matrix.args }}
@@ -120,6 +141,7 @@ jobs:
       # =========================
       - name: Build Tauri app (Windows/Linux)
         if: matrix.platform == 'windows-latest' || matrix.platform == 'ubuntu-latest'
+        working-directory: noiddea-dash
         env:
           CI: false
         run: pnpm exec tauri build
@@ -128,6 +150,7 @@ jobs:
       # Debug bundle paths
       # =========================
       - name: Debug - List bundle directories
+        working-directory: noiddea-dash
         shell: bash
         run: |
           echo "=== TARGET DIRS ==="
@@ -162,7 +185,7 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: '*installer*'
+          pattern: '*Dash-installer*'
           path: artifacts
           merge-multiple: true
 
@@ -170,9 +193,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Kapok Preview ${{ github.ref_name }}
+          name: Noiddea Dash ${{ github.ref_name }}
           body: |
-            🚀 New release available.
+            🚀 New release available for Noiddea Dash.
 
             ## Installers
             - macOS Apple Silicon
