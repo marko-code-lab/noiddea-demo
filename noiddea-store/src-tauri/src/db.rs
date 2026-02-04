@@ -48,18 +48,17 @@ impl DatabaseState {
 
         if conn_opt.is_none() {
             // Get the database path from com.noiddea.dash application
-            let mut db_path = app
+            let app_data_dir = app
                 .path()
                 .app_data_dir()
                 .map_err(|e| format!("Could not get app data directory: {}", e))?;
             
-            // Replace current app identifier with com.noiddea.dash
-            let path_str = db_path.to_string_lossy().to_string();
-            if let Some(pos) = path_str.rfind("com.noiddea.store") {
-                db_path = std::path::PathBuf::from(
-                    format!("{}com.noiddea.dash", &path_str[..pos])
-                );
-            }
+            // Get parent directory and build path to com.noiddea.dash
+            // This works correctly on Windows, macOS, and Linux
+            let db_path = app_data_dir
+                .parent()
+                .ok_or("Could not get parent directory".to_string())?
+                .join("com.noiddea.dash");
             
             std::fs::create_dir_all(&db_path)
                 .map_err(|e| format!("Could not create app data directory: {}", e))?;
@@ -149,21 +148,20 @@ fn row_to_json(row: &Row, column_names: &[String]) -> Result<serde_json::Value, 
 
 #[tauri::command]
 pub async fn db_get_path(app: tauri::AppHandle) -> Result<String, String> {
-    let mut app_data_dir = app
+    let app_data_dir = app
         .path()
         .app_data_dir()
         .map_err(|e| format!("Could not get app data directory: {}", e))?;
     
-    // Replace current app identifier with com.noiddea.dash
-    let path_str = app_data_dir.to_string_lossy().to_string();
-    if let Some(pos) = path_str.rfind("com.noiddea.store") {
-        app_data_dir = std::path::PathBuf::from(
-            format!("{}com.noiddea.dash", &path_str[..pos])
-        );
-    }
+    // Get parent directory and build path to com.noiddea.dash
+    // This works correctly on Windows, macOS, and Linux
+    let db_path = app_data_dir
+        .parent()
+        .ok_or("Could not get parent directory".to_string())?
+        .join("com.noiddea.dash")
+        .join("database.db");
 
-    Ok(app_data_dir
-        .join("database.db")
+    Ok(db_path
         .to_string_lossy()
         .to_string())
 }
