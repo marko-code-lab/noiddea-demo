@@ -1,0 +1,185 @@
+name: Build Installers
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # =========================
+          # Windows
+          # =========================
+          - platform: 'windows-latest'
+            args: ''
+            target: ''
+            name: 'Windows'
+
+    runs-on: ${{ matrix.platform }}
+
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      # =========================
+      # Checkout
+      # =========================
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # =========================
+      # PNPM
+      # =========================
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      # =========================
+      # Node
+      # =========================
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      # =========================
+      # Rust
+      # =========================
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # =========================
+      # Windows deps (MSI)
+      # =========================
+      - name: Install WiX Toolset (Windows)
+        if: matrix.platform == 'windows-latest'
+        run: choco install wixtoolset -y
+
+      # =========================
+      # Linux deps (AppImage + deb)
+      # =========================
+      - name: Install system dependencies (Linux)
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            build-essential \
+            curl \
+            wget \
+            libssl-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libfuse2
+
+      # =========================
+      # Frontend deps
+      # =========================
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      # =========================
+      # Build frontend
+      # =========================
+      - name: Build frontend
+        run: pnpm build
+
+      # =========================
+      # Verify frontend output
+      # =========================
+      # =========================
+      # Verify frontend build output
+      # =========================
+      - name: Verify frontend build output
+        shell: bash
+        run: |
+          echo "Checking dist/build folder"
+          ls -la dist || ls -la build || echo "⚠️ No dist/build folder found"
+
+      # =========================
+      # Build Tauri (macOS)
+      # =========================
+      - name: Build Tauri app (macOS)
+        if: matrix.platform == 'macos-latest'
+        env:
+          CI: false
+        run: pnpm exec tauri build ${{ matrix.args }}
+
+      # =========================
+      # Build Tauri (Windows/Linux)
+      # =========================
+      - name: Build Tauri app (Windows/Linux)
+        if: matrix.platform == 'windows-latest' || matrix.platform == 'ubuntu-latest'
+        env:
+          CI: false
+        run: pnpm exec tauri build
+
+      # =========================
+      # Debug bundle paths
+      # =========================
+      - name: Debug - List bundle directories
+        shell: bash
+        run: |
+          echo "=== TARGET DIRS ==="
+          find src-tauri/target -type d || true
+          echo "=== BUNDLE DIRS ==="
+          find src-tauri/target -type d -name bundle || true
+          echo "=== BUNDLE FILES ==="
+          find src-tauri/target -type f | grep bundle || true
+
+      # =========================
+      # Upload artifacts
+      # =========================
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-installer
+          path: noiddea/src-tauri/target/**/bundle/**
+          if-no-files-found: error
+
+  # =========================
+  # RELEASE JOB
+  # =========================
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*installer*'
+          path: artifacts
+          merge-multiple: true
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Kapok Preview ${{ github.ref_name }}
+          body: |
+            🚀 New release available.
+
+            ## Installers
+            - macOS Apple Silicon
+            - Windows (MSI)
+            - Linux (AppImage / deb)
+          draft: false
+          prerelease: false
+          files: artifacts/**/*
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
