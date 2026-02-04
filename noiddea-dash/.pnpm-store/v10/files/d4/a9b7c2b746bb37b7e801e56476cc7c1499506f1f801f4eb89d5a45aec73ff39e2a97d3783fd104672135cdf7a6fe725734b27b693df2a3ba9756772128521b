@@ -1,0 +1,9 @@
+import type { NitroConfig } from "nitro/types";
+import type { ServerRequestContext } from "srvx";
+import { type H3EventContext } from "h3";
+export declare function defineConfig(config: Omit<NitroConfig, "rootDir">): Omit<NitroConfig, "rootDir">;
+export { defineNitroPlugin as definePlugin } from "./internal/plugin.mjs";
+export { defineRouteMeta } from "./internal/meta.mjs";
+export { defineNitroErrorHandler as defineErrorHandler } from "./internal/error/utils.mjs";
+export declare function serverFetch(resource: string | URL | Request, init?: RequestInit, context?: ServerRequestContext | H3EventContext): Promise<Response>;
+export declare function fetch(resource: string | URL | Request, init?: RequestInit, context?: ServerRequestContext | H3EventContext): Promise<Response>;

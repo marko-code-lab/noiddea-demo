@@ -1,0 +1,11 @@
+import { Dirent, promises as fsPromises } from "node:fs";
+type WriteFileData = Parameters<typeof fsPromises.writeFile>[1];
+export declare function writeFile(path: string, data: WriteFileData, encoding?: BufferEncoding);
+export declare function readFile(path: string, encoding?: BufferEncoding);
+export declare function stat(path: string);
+export declare function unlink(path: string);
+export declare function readdir(dir: string): Promise<Dirent[]>;
+export declare function ensuredir(dir: string);
+export declare function readdirRecursive(dir: string, ignore?: (p: string) => boolean, maxDepth?: number);
+export declare function rmRecursive(dir: string);
+export {};
